@@ -1,0 +1,9 @@
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+fmt:
+	black .
+
+lint:
+	flake8 src/

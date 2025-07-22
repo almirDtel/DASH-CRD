@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#a61a8f"               # Um tom escuro e forte (oposto ao verde claro)
+backgroundColor = "#ffffff"           # Era preto escuro → agora branco
+secondaryBackgroundColor = "#e6e6e6"  # Painel escuro → agora claro
+textColor = "#000000"                 # Texto branco → agora preto
+font = "sans serif"

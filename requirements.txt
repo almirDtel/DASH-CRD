@@ -1,0 +1,14 @@
+# requirements.txt
+
+streamlit
+streamlit_option_menu
+streamlit-autorefresh
+requests
+pandas
+pytest
+python-dotenv
+black
+flake8
+mypy
+pytest
+pytest-mock
