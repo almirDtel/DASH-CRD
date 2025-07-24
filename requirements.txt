@@ -12,3 +12,5 @@ flake8
 mypy
 pytest
 pytest-mock
+asana
+ApiException

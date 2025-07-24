@@ -21,6 +21,8 @@ def main():
     from src.etl import main as etl_module
     from src.api_client.client import ApiClient
 
+    from asana_client.asana_client import asana_client
+
 
     client = ApiClient()
 
@@ -145,6 +147,8 @@ def main():
 
         # 7. Exibir com Streamlit
         st.dataframe(estilizar(df_exibicao), use_container_width=True)
+
+    st.dataframe(asana_client(), use_container_width=True)
 
 
 if __name__ == "__main__":
