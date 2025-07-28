@@ -32,7 +32,6 @@ def asana_client():
         "Cidade",
         "OLT",
         "STATUS",
-        "Data e Hora de Inicio",
         "Total de Clientes Afetados:",
         "IMPACTO",
         "Adicionado ao ARGOS?"
@@ -77,17 +76,17 @@ def asana_client():
         dados = []
         for task in tasks:
             if not task.get('completed'):
-                linha = {}
-                for campo in campos_personalizados:
-                    valor = None
-                    for cf in task.get("custom_fields", []):
-                        if cf.get("name", "").strip().lower() == campo.lower():
-                            valor = extrair_valor_custom_field(cf)
-                            break
-                    linha[campo] = valor
+                linha = {campo: None for campo in campos_personalizados}
+                for cf in task.get("custom_fields", []):
+                    nome_campo = cf.get("name", "").strip()
+                    if nome_campo in campos_personalizados:
+                        linha[nome_campo] = extrair_valor_custom_field(cf)
                 dados.append(linha)
 
+
         df = pd.DataFrame(dados)
+
+
 
 
         
@@ -96,4 +95,8 @@ def asana_client():
     except ApiException as e:
         print(f"❌ Erro ao acessar API Asana: {e}")
 
+
+
+    print("\n📊 Tarefas encontradas:")
+    print(df.columns)
     return df

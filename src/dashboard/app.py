@@ -25,7 +25,6 @@ st.set_page_config(
     },
 )
 
-st_autorefresh(interval=9 * 1000, key="auto_refresh")
 
 # Oculta o menu padrão do Streamlit
 st.markdown("""
