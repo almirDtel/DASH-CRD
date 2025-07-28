@@ -57,8 +57,8 @@ def main():
     tempo_kpi = (agora - st.session_state.last_update_kpi).total_seconds()
     tempo_asana = (agora - st.session_state.last_update_asana).total_seconds()
 
-    atualiza_kpi = tempo_kpi > 10
-    atualiza_asana = tempo_asana > 6
+    atualiza_kpi = tempo_kpi > 9
+    atualiza_asana = tempo_asana > 59
 
     if atualiza_kpi:
         df_relAtEstatistico = etl_module.main(client, "relAtEstatistico", params)
@@ -215,7 +215,7 @@ def main():
         st.info("Aguardando dados do Asana...")
 
     # --- Atualização contínua ---
-    st_autorefresh(interval=7 * 1000, key="auto_refresh")
+    st_autorefresh(interval=10 * 1000, key="auto_refresh")
 
 
 if __name__ == "__main__":
