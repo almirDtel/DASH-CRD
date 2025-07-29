@@ -6,6 +6,65 @@ import streamlit as st
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
+def classificar_csat(nota):
+    if nota <= 7:
+        return 0
+    elif nota >= 8:
+        return 100
+    return None
+
+def classificar_nps(nota):
+    if nota <= 6:
+        return -100
+    elif nota <= 8:
+        return 0
+    elif nota >=9:
+        return 100
+    return None
+
+def calcula_nota(df, tipo):
+# Se não encontrou, retorna vazio
+    if df.empty:
+        st.warning("❗ Nenhuma pergunta encontrada.")
+    else:
+        # 2. Explode a coluna de respostas (lista de dicionários)
+        df_exploded = df.explode("respostas").reset_index(drop=True)
+
+        # 3. Converte a coluna de dicionários em colunas reais
+        df_respostas = pd.json_normalize(df_exploded["respostas"])
+        
+        # Junta com as outras colunas do DataFrame original
+        df_respostas["nom_pergunta"] = df_exploded["nom_pergunta"].values
+
+        # 4. Limpa os dados
+        df_respostas["nota"] = pd.to_numeric(df_respostas["nom_valor"], errors="coerce")
+        df_respostas["nom_agente"] = df_respostas["nom_agente"].str.strip()
+
+        df_final = pd.DataFrame()
+
+        # 5. Aplica pontuação
+        if tipo == "csat":
+            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_csat)
+
+            
+
+        else:
+            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_nps)
+            df_respostas = df_respostas[df_respostas["pontuacao"] != 0]
+
+        df_final = (
+                df_respostas.dropna(subset=["pontuacao", "nom_agente"])
+                .groupby("nom_agente", as_index=False)["pontuacao"]
+                .mean()
+                .round(2)
+            )
+        
+        return df_final
+
+
+
+
+
 
 def main():
     st.set_page_config(page_title="Dashboard CRD", layout="wide")
@@ -57,7 +116,7 @@ def main():
     tempo_kpi = (agora - st.session_state.last_update_kpi).total_seconds()
     tempo_asana = (agora - st.session_state.last_update_asana).total_seconds()
 
-    atualiza_kpi = tempo_kpi > 9
+    atualiza_kpi = tempo_kpi > 14
     atualiza_asana = tempo_asana > 59
 
     if atualiza_kpi:
@@ -67,51 +126,29 @@ def main():
         df_pesquisa = etl_module.main(client, "RelPesqAnalitico", params2)
         df_pesquisa.to_csv("relatorio_pesquisa.csv", index=False, sep=",")
         df_csat = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f449##", na=False)].copy()
+        df_nps = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f4e3##", na=False)].copy()
 
-        # Se não encontrou, retorna vazio
-        if df_csat.empty:
-            st.warning("❗ Nenhuma pergunta CSAT encontrada.")
-        else:
-            # 2. Explode a coluna de respostas (lista de dicionários)
-            df_csat_exploded = df_csat.explode("respostas").reset_index(drop=True)
-
-            # 3. Converte a coluna de dicionários em colunas reais
-            df_respostas = pd.json_normalize(df_csat_exploded["respostas"])
-            
-            # Junta com as outras colunas do DataFrame original
-            df_respostas["nom_pergunta"] = df_csat_exploded["nom_pergunta"].values
-
-            # 4. Limpa os dados
-            df_respostas["nota"] = pd.to_numeric(df_respostas["nom_valor"], errors="coerce")
-            df_respostas["nom_agente"] = df_respostas["nom_agente"].str.strip()
-
-            # 5. Aplica pontuação
-            def classificar_csat(nota):
-                if nota <= 7:
-                    return 0
-                elif nota >= 8:
-                    return 100
-                return None
-
-            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_csat)
-
-            # 6. Agrupa por agente
-            df_csat_final = (
-                df_respostas.dropna(subset=["pontuacao", "nom_agente"])
-                .groupby("nom_agente", as_index=False)["pontuacao"]
-                .mean()
-                .round(2)
-            )
-
+        df_csat_final = calcula_nota(df_csat, "csat").rename(columns={'pontuacao': '%CSAT'})
+        df_nps_final = calcula_nota(df_nps, "nps").rename(columns={'pontuacao': '%NPS'})
+        
 
         if not df_relAtEstatistico.empty and not df_agentesOnline.empty:
             st.session_state.last_update_kpi = agora
-            df_agentesOnline = df_agentesOnline.rename(columns={'nom_agente': 'agrupador'})
-            df_csat_final = df_csat_final.rename(columns={'nom_agente': 'agrupador'})
-            df_relAtEstatistico = df_relAtEstatistico.merge(df_agentesOnline, how="inner", on="agrupador")
-            df_relAtEstatistico = df_relAtEstatistico.merge(df_csat_final, how="inner", on="agrupador")
 
-            
+            # Dicionário com os DataFrames que precisam ser renomeados
+            dataframes_renomear = [df_agentesOnline, df_csat_final, df_nps_final]
+
+            # Renomear todos para que 'nom_agente' vire 'agrupador'
+            dataframes_renomear = [df.rename(columns={'nom_agente': 'agrupador'}) for df in dataframes_renomear]
+            df_agentesOnline, df_csat_final, df_nps_final = dataframes_renomear
+
+            # Merge encadeado de todos os DataFrames
+            df_relAtEstatistico = (
+                df_relAtEstatistico
+                .merge(df_agentesOnline, how="inner", on="agrupador")
+                .merge(df_csat_final, how="inner", on="agrupador")
+                .merge(df_nps_final, how="inner", on="agrupador")
+            )
 
             df = df_relAtEstatistico.copy()
             df = df[[
@@ -125,7 +162,8 @@ def main():
                 'num_qtd', 
                 'tmic', 
                 'status', 
-                'pontuacao'
+                '%CSAT',
+                '%NPS'
             ]].rename(columns={
                 "agrupador": "Nome",
                 "num_qtd": "QTD",
@@ -136,8 +174,7 @@ def main():
                 "dat_login": "Hora Login",
                 "tempo_status": "Tempo Status",
                 "nom_pausa": "Pausa",
-                "tempo_logado": "Tempo Logado",
-                "pontuacao": "%CSAT"
+                "tempo_logado": "Tempo Logado"
             })
 
             df['QTD'] = pd.to_numeric(df['QTD'], errors='coerce').fillna(0).astype(int)
@@ -195,6 +232,7 @@ def main():
             .set_properties(**{'text-align': 'center'})
             .apply(lambda _: styles, axis=None)
             .format({"%CSAT": lambda x: f"{x:.2f}".replace('.', ',')})
+            .format({"%NPS": lambda x: f"{x:.2f}".replace('.', ',')})
         )
 
 
@@ -215,7 +253,7 @@ def main():
         st.info("Aguardando dados do Asana...")
 
     # --- Atualização contínua ---
-    st_autorefresh(interval=10 * 1000, key="auto_refresh")
+    st_autorefresh(interval=15 * 1000, key="auto_refresh")
 
 
 if __name__ == "__main__":
