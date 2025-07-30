@@ -63,9 +63,6 @@ def calcula_nota(df, tipo):
 
 
 
-
-
-
 def main():
     st.set_page_config(page_title="Dashboard CRD", layout="wide")
     st.title("DASHBOARD CRD")
@@ -223,10 +220,10 @@ def main():
         styles = pd.DataFrame('', index=df.index, columns=df.columns)
 
         # Aplica cor gradiente na coluna TMIA baseada no valor em segundos
-        for i, val in enumerate(st.session_state.df_exibicao["TMIA_segundos"]):
-            styles.loc[i, "TMIA"] = cor_gradiente(val)
+        for idx, val in zip(df.index, st.session_state.df_exibicao["TMIA_segundos"]):
+            styles.loc[idx, "TMIA"] = cor_gradiente(val)
 
-        # Retorna o Styler com alinhamento, cor e formatação para %CSAT
+        # Retorna o Styler com alinhamento, cor e formatação para %CSAT e %NPS
         return (
             df.style
             .set_properties(**{'text-align': 'center'})
@@ -241,6 +238,9 @@ def main():
     df_kpi = st.session_state.df_exibicao
     if not df_kpi.empty:
         altura = min(900, 35 + len(df_kpi) * 35)
+        df_kpi = df_kpi.reset_index(drop=True)
+        df_kpi.index = df_kpi.index + 1
+        df_kpi.index.name = 'Rank'
         st.dataframe(estilizar(df_kpi), use_container_width=True, height=altura)
     else:
         st.info("Aguardando dados de KPI...")
