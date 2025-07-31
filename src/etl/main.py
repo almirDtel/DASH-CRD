@@ -22,21 +22,28 @@ def extrair_dados(client: ApiClient, endpoint: str, params=None) -> pd.DataFrame
     print("📦 Dados brutos recebidos da API: ", endpoint)
     return pd.DataFrame(dados_json)  
 
-def main(client, endpoint: str, params=None)->pd.DataFrame:
-
+def main(client, endpoint: str, params=None) -> pd.DataFrame:
     df = pd.DataFrame()
 
-    if client.authenticate():
-        print("✅ Autenticado com sucesso.")
-        df_raw = extrair_dados(client, endpoint, params)
+    # Tenta extrair dados diretamente
+    df_raw = extrair_dados(client, endpoint, params)
 
-        if not df_raw.empty:
+    # Se a resposta for vazia ou nula, tenta autenticar e extrair de novo
+    if df_raw is None or df_raw.empty:
+        print("🔄 Tentando autenticar após falha na primeira tentativa de extração...")
+        if client.authenticate():
+            print("✅ Autenticado com sucesso.")
+            df_raw = extrair_dados(client, endpoint, params)
+        else:
+            print("❌ Falha na autenticação")
+            return df
 
-            df = transformar_dados(df_raw)
-       
-    else:
-        print("❌ Falha na autenticação")
+    # Se conseguiu dados, transforma
+    if df_raw is not None and not df_raw.empty:
+
+        df = transformar_dados(df_raw)
 
     return df
+
 
 

@@ -118,28 +118,36 @@ def main():
 
     if atualiza_kpi:
         df_relAtEstatistico = etl_module.main(client, "relAtEstatistico", params)
-        df_agentesOnline = etl_module.main(client, "agentesOnline")
 
-        df_pesquisa = etl_module.main(client, "RelPesqAnalitico", params2)
-        df_pesquisa.to_csv("relatorio_pesquisa.csv", index=False, sep=",")
-        df_csat = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f449##", na=False)].copy()
-        df_nps = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f4e3##", na=False)].copy()
+        # Atualiza os dados "lentos" a cada 60 segundos
+        if atualiza_asana or "df_agentesOnline" not in st.session_state:
+            st.session_state.df_agentesOnline = etl_module.main(client, "agentesOnline")
+            st.session_state.df_pesquisa = etl_module.main(client, "RelPesqAnalitico", params2)
 
-        df_csat_final = calcula_nota(df_csat, "csat").rename(columns={'pontuacao': '%CSAT'})
-        df_nps_final = calcula_nota(df_nps, "nps").rename(columns={'pontuacao': '%NPS'})
-        
+            df_pesquisa = st.session_state.df_pesquisa
+            st.session_state.df_csat = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f449##", na=False)].copy()
+            st.session_state.df_nps = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f4e3##", na=False)].copy()
+
+            st.session_state.df_csat_final = calcula_nota(st.session_state.df_csat, "csat").rename(columns={'pontuacao': '%CSAT'})
+            st.session_state.df_nps_final = calcula_nota(st.session_state.df_nps, "nps").rename(columns={'pontuacao': '%NPS'})
+
+            st.session_state.df_asana = asana_client()
+            st.session_state.last_update_asana = agora
+
+        # Recupera os dados persistidos no session_state
+        df_agentesOnline = st.session_state.df_agentesOnline
+        df_csat_final = st.session_state.df_csat_final
+        df_nps_final = st.session_state.df_nps_final
 
         if not df_relAtEstatistico.empty and not df_agentesOnline.empty:
             st.session_state.last_update_kpi = agora
 
-            # Dicionário com os DataFrames que precisam ser renomeados
+            # Padroniza nomes
             dataframes_renomear = [df_agentesOnline, df_csat_final, df_nps_final]
-
-            # Renomear todos para que 'nom_agente' vire 'agrupador'
             dataframes_renomear = [df.rename(columns={'nom_agente': 'agrupador'}) for df in dataframes_renomear]
             df_agentesOnline, df_csat_final, df_nps_final = dataframes_renomear
 
-            # Merge encadeado de todos os DataFrames
+            # Merge principal
             df_relAtEstatistico = (
                 df_relAtEstatistico
                 .merge(df_agentesOnline, how="inner", on="agrupador")
@@ -148,7 +156,7 @@ def main():
             )
 
             df = df_relAtEstatistico.copy()
-            df = df[[
+            df = df[[ 
                 'agrupador', 
                 'dat_login',
                 'tmia',
@@ -185,9 +193,6 @@ def main():
 
             st.session_state.df_exibicao = df
 
-    if atualiza_asana:
-        st.session_state.df_asana = asana_client()
-        st.session_state.last_update_asana = agora
 
     # --- Estilização ---
     def cor_gradiente(val):
