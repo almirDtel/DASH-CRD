@@ -6,6 +6,17 @@ import streamlit as st
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
+
+# Importações
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+from src.etl import main as etl_module
+from src.api_client.client import ApiClient
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from asana_client.asana_client import asana_client
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+from src.db.connection import get_ligacoes_por_data
+
+
 def classificar_csat(nota):
     if nota <= 7:
         return 0
@@ -80,12 +91,6 @@ def main():
         st.session_state.last_update_asana = datetime.min
         st.session_state.df_asana = pd.DataFrame()
 
-    # Importações
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-    from src.etl import main as etl_module
-    from src.api_client.client import ApiClient
-    from asana_client.asana_client import asana_client
-
     client = ApiClient()
 
     agora = datetime.now()
@@ -115,6 +120,30 @@ def main():
 
     atualiza_kpi = tempo_kpi > 14
     atualiza_asana = tempo_asana > 59
+
+    df_ligacoes = get_ligacoes_por_data(
+        data_inicial.strftime(formato),
+        data_final.strftime(formato)
+    )
+
+    if not df_ligacoes.empty:
+        # Classifica chamadas
+        df_ligacoes["status"] = df_ligacoes["status"].str.upper()
+        df_ligacoes["tipo"] = df_ligacoes["status"].apply(
+            lambda x: "RECEBIDA" if "RECEB" in x else "REALIZADA"
+        )
+
+        # Agrupa por agente e tipo
+        df_ligacoes_agg = (
+            df_ligacoes.groupby(["agente", "tipo"])
+            .size()
+            .unstack(fill_value=0)
+            .reset_index()
+            .rename(columns={"agente": "agrupador"})
+        )
+    else:
+        df_ligacoes_agg = pd.DataFrame()
+
 
     if atualiza_kpi:
         df_relAtEstatistico = etl_module.main(client, "relAtEstatistico", params)
@@ -155,6 +184,13 @@ def main():
                 .merge(df_nps_final, how="inner", on="agrupador")
             )
 
+            if not df_ligacoes_agg.empty:
+                df_relAtEstatistico = df_relAtEstatistico.merge(df_ligacoes_agg, how="left", on="agrupador")
+                df_relAtEstatistico[["RECEBIDA", "REALIZADA"]] = df_relAtEstatistico[["RECEBIDA", "REALIZADA"]].fillna(0).astype(int)
+            else:
+                df_relAtEstatistico["RECEBIDA"] = 0
+                df_relAtEstatistico["REALIZADA"] = 0
+
             df = df_relAtEstatistico.copy()
             df = df[[ 
                 'agrupador', 
@@ -168,7 +204,9 @@ def main():
                 'tmic', 
                 'status', 
                 '%CSAT',
-                '%NPS'
+                '%NPS',
+                'REALIZADA',
+                'RECEBIDA'
             ]].rename(columns={
                 "agrupador": "Nome",
                 "num_qtd": "QTD",
