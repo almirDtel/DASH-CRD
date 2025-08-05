@@ -28,7 +28,6 @@ def asana_client():
     tasks_api = asana.TasksApi(api_client)
 
     campos_personalizados = [
-        "INDISPONIBILIDADE",
         "Cidade",
         "OLT",
         "STATUS",
@@ -96,7 +95,9 @@ def asana_client():
         print(f"❌ Erro ao acessar API Asana: {e}")
 
 
+    df = df.sort_values(by='Total de Clientes Afetados:', ascending=False)
 
     print("\n📊 Tarefas encontradas:")
     print(df.columns)
+
     return df
