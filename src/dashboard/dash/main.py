@@ -180,8 +180,8 @@ def main():
             df_relAtEstatistico = (
                 df_relAtEstatistico
                 .merge(df_agentesOnline, how="inner", on="agrupador")
-                .merge(df_csat_final, how="inner", on="agrupador")
-                .merge(df_nps_final, how="inner", on="agrupador")
+                .merge(df_csat_final, how="left", on="agrupador")
+                .merge(df_nps_final, how="left", on="agrupador")
             )
 
             if not df_ligacoes_agg.empty:
@@ -205,8 +205,8 @@ def main():
                 'status', 
                 '%CSAT',
                 '%NPS',
-                'REALIZADA',
-                'RECEBIDA'
+                'RECEBIDA',
+                'REALIZADA'
             ]].rename(columns={
                 "agrupador": "Nome",
                 "num_qtd": "QTD",
