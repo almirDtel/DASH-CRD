@@ -55,9 +55,7 @@ def calcula_nota(df, tipo):
 
         # 5. Aplica pontuação
         if tipo == "csat":
-            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_csat)
-
-            
+            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_csat)    
 
         else:
             df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_nps)
@@ -72,11 +70,10 @@ def calcula_nota(df, tipo):
         
         return df_final
 
-
-
 def main():
     st.set_page_config(page_title="Dashboard CRD", layout="wide")
     st.title("DASHBOARD CRD")
+    df = pd.DataFrame()
 
     # --- Filtro de setor com selectbox persistente ---
     setores = ["", "NRC", "Suporte - PF", "Trafego Pago", "Acordo - N2", "Cancelamento - PF"]
@@ -92,6 +89,7 @@ def main():
 
     if setor != st.session_state.setor:
         st.session_state.setor = setor
+        st.rerun()
 
     setor = st.session_state.setor
 
@@ -149,17 +147,19 @@ def main():
             'pausa', 'dat_login', 'tempo_logado', 'num_qtd', 'RECEBIDA', 'REALIZADA'
         ]].rename(columns={
             "agente": "Nome",
-            "num_qtd": "QTD",
+            "num_qtd": "💬 QTD",
             "tma": "TMA",
             "tmia": "TMIA",
             "status": "Status",
             "dat_login": "Hora Login",
             "tempo_status": "Tempo Status",
             "pausa": "Pausa",
-            "tempo_logado": "Tempo Logado"
+            "tempo_logado": "Tempo Logado",
+            'RECEBIDA':'📞 RECEBIDA', 
+            'REALIZADA': '📞 REALIZADA'
         })
 
-        df['QTD'] = pd.to_numeric(df['QTD'], errors='coerce').fillna(0).astype(int)
+        df['💬 QTD'] = pd.to_numeric(df['💬 QTD'], errors='coerce').fillna(0).astype(int)
         df = df.sort_values(by="TMIA", ascending=True).reset_index(drop=True)
         df["Hora Login"] = pd.to_datetime(df["Hora Login"], errors="coerce").dt.strftime('%H:%M:%S')
         df["TMIA_td"] = pd.to_timedelta(df["TMIA"])
@@ -191,11 +191,12 @@ def main():
 
     def estilizar(df):
         tmia_segundos = df["TMIA_segundos"].copy()
-        df = df.drop(columns=["TMIA_td", "TMIA_fmt"])
-        styles = pd.DataFrame('', index=df.index, columns=df.columns)
+        df = df.drop(columns=["TMIA_td", "TMIA_fmt", "TMIA_segundos"])  # já remove aqui
+        styles = pd.DataFrame('', index=df.index, columns=df.columns)  # agora tem o shape correto
         for idx, val in zip(df.index, tmia_segundos):
             styles.loc[idx, "TMIA"] = cor_gradiente(val)
         return df.style.set_properties(**{'text-align': 'center'}).apply(lambda _: styles, axis=None)
+
 
     # --- Exibição KPI ---
     st.subheader("Relatório KPI Estatístico")
@@ -217,4 +218,4 @@ def main():
         st.info("Nenhuma emergência no Asana no momento")
 
     # --- Atualização contínua ---
-    st_autorefresh(interval=15 * 1000, key="auto_refresh")
+    st_autorefresh(interval=30 * 1000, key="auto_refresh")
