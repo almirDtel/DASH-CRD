@@ -1,0 +1,45 @@
+{
+  "usernames": {
+    "almir.soares": {
+      "name": "Almir Soares",
+      "password": "$2b$12$p/ewOyDS1F6QpZTFGuGpnuIMyI/5TiARCFEIsaGF/zZQ5TanBUDIu",  
+      "email": "almir.soares.grdtel@gmail.com"
+    },
+    "gabriel.lima": {
+      "name": "Gabriel Lima",
+      "password": "$2b$12$Al/8I5Jhmvntcf7PvzatHuORrMms3mGDa9tK58WXgb1YZJHXXOeN6", 
+      "email": "gabriel@dtel.com.br"
+    },
+    "gabriel.silva":{
+      "name": "Jose Gabriel Silva",
+      "password": "$2b$12$EUq/9wxE9pYVkXNgg.WEC.JCHKhGQEFTDQ9MnsWFW3iyVnM1j/mYy", 
+      "email": "jose.silva@dtel.com.br"
+    },
+    "mickael.silva":{
+      "name": "Mickael Antonio Silva",
+      "password": "$2b$12$3HPsL3USyNgSMKlMtNLUNuZSXvBWqMqH0GaZr7.u7a/kkAg8pVXfy",
+      "email": "mickael.silva@dtel.com.br"
+    },
+    "juliana.pereira":{
+      "name": "Juliana Pereira",
+      "password": "$2b$12$wRPF8m6Ktfc0YoTTDUv1zO976QJ5XLql8jHyYAWCqW8jEw78ZPiFy",
+      "email": "juliana.pereira@dtel.com.br"
+    },
+    "ayrton.lima": {
+      "name": "Ayrton Lima",
+      "password": "$2b$12$AgvLlwStGwwhNenVBx3QCO5az/Yzs9U5Bi4P1TX791EgS.BNWKDn6",
+      "email": "Ayrton@dtel.com.br"
+    },
+    "tanielma.oliveira":{
+      "name": "Tanielma Oliveira",
+      "password": "$2b$12$pDH2ay6oAfpnT1CTb/jxLOV4f2qKXpHsG/muCAdIgV5avdfkZ3BXK",
+      "email": "tanielma@dtel.com.br"
+    },
+    "weslley.souza":{
+      "name": "Weslley Souza",
+      "password": "$2b$12$fOsJPIu7C8ARngTn3jQfxu5n0IR8B6bybCyplfM.oCfK4iIkwxCX6",
+      "email": "weslley.souza@dtel.com.br"
+    }
+
+  }
+}

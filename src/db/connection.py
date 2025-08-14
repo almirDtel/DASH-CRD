@@ -26,6 +26,16 @@ def get_ligacoes_por_data(conn, data_inicio, data_fim):
     except Exception:
         return pd.DataFrame()
 
+def get_pesquisa_por_data(conn, data_inicio, data_fim):
+    query = """
+        SELECT nom_pergunta, agente, dat_resposta, nom_valor
+        FROM pesquisa_analitico 
+        WHERE dat_resposta BETWEEN %s AND %s
+    """
+    try:
+        return pd.read_sql(query, conn, params=[data_inicio, data_fim])
+    except Exception:
+        return pd.DataFrame()
 
 def get_asana(conn):
     query = """
@@ -39,7 +49,7 @@ def get_asana(conn):
     
 def get_agentes_online(conn):
     query = """
-        SELECT agente, pausa, status, tempo_status, tempo_logado
+        SELECT agente, pausa, status, tempo_status, tempo_logado, dat_login
         FROM agentes_online 
     """
     try:
@@ -74,6 +84,7 @@ def get_db(data_inicio, data_fim):
             df_asana = get_asana(conn)
             df_online = get_agentes_online(conn)
             df_estatistico = get_estatistico_instataneo(conn)
+            df_pesquisa = get_pesquisa_por_data(conn, data_inicio, data_fim)
         finally:
             conn.close()
         
@@ -82,13 +93,15 @@ def get_db(data_inicio, data_fim):
             "ligacoes": df_ligacoes,
             "asana": df_asana,
             "online": df_online,
-            "estatistico": df_estatistico
+            "estatistico": df_estatistico,
+            "pesquisa": df_pesquisa
         }
     except Exception:
         return {
             "ligacoes": pd.DataFrame(),
             "asana": pd.DataFrame(),
             "online": pd.DataFrame(),
-            "estatistico": pd.DataFrame()
+            "estatistico": pd.DataFrame(),
+            "pesquisa": pd.DataFrame()
         }
 

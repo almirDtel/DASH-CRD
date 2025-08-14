@@ -5,6 +5,7 @@ import streamlit.components.v1 as components
 from sidebar import sidebar
 from streamlit_option_menu import option_menu
 from streamlit_autorefresh import st_autorefresh
+import requests
 
 
 # Corrige o sys.path para importar src.dashboard.*
@@ -36,44 +37,74 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Inicializa a página se ainda não existir
-if "page" not in st.session_state:
-    st.session_state.page = "Página Inicial"
+API_URL = "http://localhost:8002"
 
-# 👉 Chama a sidebar primeiro
-sidebar()
+def login(username, password):
+    data = {"username": username, "password": password}
+    response = requests.post(f"{API_URL}/login", data=data)
+    if response.status_code == 200:
+        return response.json()['access_token']
+    return None
 
-# Menu horizontal principal
-selecionado = option_menu(
-    menu_title=None,
-    options=["Página Inicial","Dashboard"],
-    icons=["house", "book","bar-chart"],
-    menu_icon="cast",
-    default_index=["Página Inicial", "Dashboard"].index(st.session_state.page),
-    orientation="horizontal",
-    styles={
-        "container": {"padding": "0!important", "background-color": "#00332e"},
-        "icon": {"color": "white", "font-size": "18px"},
-        "nav-link": {
-            "font-size": "16px",
-            "text-align": "center",
-            "margin": "0px",
-            "color": "white",
-        },
-        "nav-link-selected": {
-            "background-color": "#145c52",
-            "font-weight": "bold",
-        },
-    }
-)
+if 'token' not in st.session_state:
+    st.session_state.token = None
 
-# Sincroniza com session_state, se necessário
-if selecionado != st.session_state.page:
-    st.session_state.page = selecionado
-    st.rerun()
+if st.session_state.token is None:
+    st.title("Login")
+    username = st.text_input("Usuário")
+    password = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        token = login(username, password)
+        if token:
+            st.session_state.token = token
+            st.success(f"Bem-vindo, {username}!")
+            st.rerun()
+        else:
+            st.error("Usuário ou senha inválidos.")
+else:
+    if st.button("Sair"):
+        st.session_state.token = None
+        st.rerun()
 
-# 🚀 Executa a página escolhida
-if st.session_state.page == "Página Inicial":
-    main_home()
-elif st.session_state.page == "Dashboard":
-    main_dash()
+
+    # Inicializa a página se ainda não existir
+    if "page" not in st.session_state:
+        st.session_state.page = "Página Inicial"
+
+    # 👉 Chama a sidebar primeiro
+    sidebar()
+
+    # Menu horizontal principal
+    selecionado = option_menu(
+        menu_title=None,
+        options=["Página Inicial","Dashboard"],
+        icons=["house", "book","bar-chart"],
+        menu_icon="cast",
+        default_index=["Página Inicial", "Dashboard"].index(st.session_state.page),
+        orientation="horizontal",
+        styles={
+            "container": {"padding": "0!important", "background-color": "#00332e"},
+            "icon": {"color": "white", "font-size": "18px"},
+            "nav-link": {
+                "font-size": "16px",
+                "text-align": "center",
+                "margin": "0px",
+                "color": "white",
+            },
+            "nav-link-selected": {
+                "background-color": "#145c52",
+                "font-weight": "bold",
+            },
+        }
+    )
+
+    # Sincroniza com session_state, se necessário
+    if selecionado != st.session_state.page:
+        st.session_state.page = selecionado
+        st.rerun()
+
+    # 🚀 Executa a página escolhida
+    if st.session_state.page == "Página Inicial":
+        main_home()
+    elif st.session_state.page == "Dashboard":
+        main_dash()

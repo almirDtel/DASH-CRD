@@ -15,3 +15,5 @@ pytest-mock
 asana
 ApiException
 pymysql
+fastapi-login 
+fastapi
