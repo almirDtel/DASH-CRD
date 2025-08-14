@@ -17,3 +17,4 @@ ApiException
 pymysql
 fastapi-login 
 fastapi
+uvicorn
