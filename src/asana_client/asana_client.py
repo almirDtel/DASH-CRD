@@ -83,19 +83,13 @@ def asana_client():
                 dados.append(linha)
 
 
-        df = pd.DataFrame(dados)
+        if dados:  # Verifica se a lista não está vazia
+            df = pd.DataFrame(dados)
+            df = df.sort_values(by='Total de Clientes Afetados:', ascending=False)
 
-
-
-
-        
-        
 
     except ApiException as e:
         print(f"❌ Erro ao acessar API Asana: {e}")
-
-
-    df = df.sort_values(by='Total de Clientes Afetados:', ascending=False)
 
     print("\n📊 Tarefas encontradas:")
     print(df.columns)

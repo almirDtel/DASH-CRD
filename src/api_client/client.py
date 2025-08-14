@@ -37,10 +37,30 @@ class ApiClient:
         try:
             response = self.session.post(API_LOGIN_URL, json=payload, headers=headers)
             response.raise_for_status()
-            self.token = response.json().get("result", {}).get("token")
 
+            # DEBUG: Status e conteúdo da resposta
+            print("📨 Resposta da autenticação:", response.status_code)
+
+            try:
+                json_data = response.json()
+                print("📦 Conteúdo da resposta JSON:", json_data)
+            except ValueError:
+                print("❌ Erro ao interpretar a resposta como JSON.")
+                return False
+
+            # Verifica se a resposta é um dicionário
+            if not isinstance(json_data, dict):
+                print("⚠️ Resposta inesperada da API (esperado dict, recebido:", type(json_data), ")")
+                return False
+
+            result = json_data.get("result", {})
+            if not isinstance(result, dict):
+                print("⚠️ 'result' não é um dicionário:", result)
+                return False
+
+            self.token = result.get("token")
             if not self.token:
-                print("⚠️ Token não encontrado na resposta!")
+                print("⚠️ Token não encontrado na resposta:", json_data)
                 return False
 
             return True
@@ -50,9 +70,10 @@ class ApiClient:
             print("API LOGIN URL:", API_LOGIN_URL)
             print("API USERNAME:", API_USERNAME)
             print("API PASSWORD:", API_PASSWORD)
-            print("API_BASE_URL", self.base_url)
-
+            print("API_BASE_URL:", self.base_url)
             return False
+
+
 
     def _get_headers(self) -> Dict[str, str]:
         """Retorna os headers com o token JWT."""

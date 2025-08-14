@@ -14,7 +14,7 @@ from src.api_client.client import ApiClient
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from asana_client.asana_client import asana_client
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-from src.db.connection import get_ligacoes_por_data
+from src.db.connection import get_db
 
 
 def classificar_csat(nota):
@@ -121,10 +121,10 @@ def main():
     atualiza_kpi = tempo_kpi > 14
     atualiza_asana = tempo_asana > 59
 
-    df_ligacoes = get_ligacoes_por_data(
-        data_inicial.strftime(formato),
-        data_final.strftime(formato)
-    )
+    dados_database = get_db(data_inicial.strftime(formato),data_final.strftime(formato))
+
+    df_ligacoes = dados_database["ligacoes"]
+
 
     if not df_ligacoes.empty:
         # Classifica chamadas
@@ -186,7 +186,15 @@ def main():
 
             if not df_ligacoes_agg.empty:
                 df_relAtEstatistico = df_relAtEstatistico.merge(df_ligacoes_agg, how="left", on="agrupador")
-                df_relAtEstatistico[["RECEBIDA", "REALIZADA"]] = df_relAtEstatistico[["RECEBIDA", "REALIZADA"]].fillna(0).astype(int)
+                
+                # Garante que as colunas existam mesmo que não tenham aparecido na agregação
+                for col in ["RECEBIDA", "REALIZADA"]:
+                    if col not in df_relAtEstatistico.columns:
+                        df_relAtEstatistico[col] = 0
+
+                df_relAtEstatistico[["RECEBIDA", "REALIZADA"]] = (
+                    df_relAtEstatistico[["RECEBIDA", "REALIZADA"]].fillna(0).astype(int)
+                )
             else:
                 df_relAtEstatistico["RECEBIDA"] = 0
                 df_relAtEstatistico["REALIZADA"] = 0
@@ -288,6 +296,7 @@ def main():
     else:
         st.info("Aguardando dados de KPI...")
 
+
     st.subheader("Relatório Asana")
     df_asana = st.session_state.df_asana
     if not df_asana.empty:
@@ -299,5 +308,4 @@ def main():
     st_autorefresh(interval=15 * 1000, key="auto_refresh")
 
 
-if __name__ == "__main__":
-    main()
+

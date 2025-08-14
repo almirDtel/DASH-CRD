@@ -14,4 +14,4 @@ pytest
 pytest-mock
 asana
 ApiException
-mysql-connector-python
+pymysql
