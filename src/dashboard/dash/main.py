@@ -33,42 +33,29 @@ def classificar_nps(nota):
         return 100
     return None
 
-def calcula_nota(df, tipo):
-# Se não encontrou, retorna vazio
+def calcula_nota_df(df, tipo):
     if df.empty:
-        st.warning("❗ Nenhuma pergunta encontrada.")
+        return pd.DataFrame(columns=["agente", "pontuacao"])
+    
+    # Limpa os dados
+    df["nota"] = pd.to_numeric(df["nom_valor"], errors="coerce")
+    df["agente"] = df["agente"].str.strip()
+
+    # Aplica pontuação
+    if tipo.lower() == "csat":
+        df["pontuacao"] = df["nota"].apply(classificar_csat)
     else:
-        # 2. Explode a coluna de respostas (lista de dicionários)
-        df_exploded = df.explode("respostas").reset_index(drop=True)
+        df["pontuacao"] = df["nota"].apply(classificar_nps)
+        df = df[df["pontuacao"] != 0]
 
-        # 3. Converte a coluna de dicionários em colunas reais
-        df_respostas = pd.json_normalize(df_exploded["respostas"])
-        
-        # Junta com as outras colunas do DataFrame original
-        df_respostas["nom_pergunta"] = df_exploded["nom_pergunta"].values
-
-        # 4. Limpa os dados
-        df_respostas["nota"] = pd.to_numeric(df_respostas["nom_valor"], errors="coerce")
-        df_respostas["nom_agente"] = df_respostas["nom_agente"].str.strip()
-
-        df_final = pd.DataFrame()
-
-        # 5. Aplica pontuação
-        if tipo == "csat":
-            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_csat)    
-
-        else:
-            df_respostas["pontuacao"] = df_respostas["nota"].apply(classificar_nps)
-            df_respostas = df_respostas[df_respostas["pontuacao"] != 0]
-
-        df_final = (
-                df_respostas.dropna(subset=["pontuacao", "nom_agente"])
-                .groupby("nom_agente", as_index=False)["pontuacao"]
-                .mean()
-                .round(2)
-            )
-        
-        return df_final
+    # Agrupa por agente
+    df_final = (
+        df.dropna(subset=["pontuacao", "agente"])
+        .groupby("agente", as_index=False)["pontuacao"]
+        .mean()
+        .round(2)
+    )
+    return df_final
 
 def main():
     st.set_page_config(page_title="Dashboard CRD", layout="wide")
@@ -121,6 +108,17 @@ def main():
     df_agentesOnline = dados_database["online"]
     df_pesquisa = dados_database["pesquisa"]
 
+    df_csat = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f449##", na=False)].drop(columns=["nom_pergunta"])
+
+    df_nps = df_pesquisa[df_pesquisa["nom_pergunta"].str.contains("##1f4e3##", na=False)].drop(columns=["nom_pergunta"])
+
+    # Calcula as notas
+    df_csat_final = calcula_nota_df(df_csat, "csat")
+    df_nps_final  = calcula_nota_df(df_nps, "nps")
+
+    # Junta em um único DataFrame
+    df_resultado = pd.merge(df_csat_final, df_nps_final, on="agente", how="outer", suffixes=("_csat", "_nps"))
+
     if not df_relAtEstatistico.empty and not df_agentesOnline.empty:
         df_relAtEstatistico = df_relAtEstatistico.merge(df_agentesOnline, how="inner", on="agente")
 
@@ -136,6 +134,9 @@ def main():
             df_relAtEstatistico["RECEBIDA"] = 0
             df_relAtEstatistico["REALIZADA"] = 0
 
+        if not df_resultado.empty:
+            df_relAtEstatistico = df_relAtEstatistico.merge(df_resultado, how="left", on="agente")
+
         df = df_relAtEstatistico.copy()
 
         # --- Filtro pelo setor ---
@@ -143,8 +144,8 @@ def main():
             df = df[df["servico"] == setor]
 
         df = df[[
-            'agente', 'servico', 'tmia', 'tma', 'tempo_status', 'status',
-            'pausa', 'dat_login', 'tempo_logado', 'num_qtd', 'RECEBIDA', 'REALIZADA'
+            'agente', 'servico', 'pontuacao_csat', 'tmia', 'tma', 'tempo_status', 'status',
+            'pausa', 'dat_login', 'tempo_logado', 'num_qtd', 'RECEBIDA', 'REALIZADA', 'pontuacao_nps'
         ]].rename(columns={
             "agente": "Nome",
             "num_qtd": "💬 QTD",
@@ -155,8 +156,10 @@ def main():
             "tempo_status": "Tempo Status",
             "pausa": "Pausa",
             "tempo_logado": "Tempo Logado",
-            'RECEBIDA':'📞 RECEBIDA', 
-            'REALIZADA': '📞 REALIZADA'
+            'RECEBIDA':'📞 ↙️', 
+            'REALIZADA': '📞 ⬈',
+            'pontuacao_csat': '%CSAT',
+            'pontuacao_nps': "%NPS"
         })
 
         df['💬 QTD'] = pd.to_numeric(df['💬 QTD'], errors='coerce').fillna(0).astype(int)
@@ -166,8 +169,17 @@ def main():
         df["TMIA_fmt"] = df["TMIA_td"].apply(lambda x: f"{int(x.total_seconds() // 60):02}:{int(x.total_seconds() % 60):02}")
         df["TMIA_segundos"] = df["TMIA_td"].dt.total_seconds()
         df["TMIA"] = df["TMIA_fmt"]
+        df["TMA"] = pd.to_timedelta(df["TMA"])
+        df["Tempo Status"] = pd.to_timedelta(df["Tempo Status"])
+        df["Tempo Logado"] = pd.to_timedelta(df["Tempo Logado"])
+        df["TMA"] = df["TMA"].apply(lambda x: f"{int(x.total_seconds() // 60):02d}:{int(x.total_seconds() % 60):02d}")
+        df["Tempo Status"] = df["Tempo Status"].apply(lambda x: str(x).split()[2] if "days" in str(x) else str(x))
+        df["Tempo Logado"] = df["Tempo Logado"].apply(lambda x: str(x).split()[2] if "days" in str(x) else str(x))
+        df['%CSAT'] = df['%CSAT'].astype(float).map("{:.2f}".format)
+        df['%NPS'] = df['%NPS'].astype(float).map("{:.2f}".format)
 
-    def cor_gradiente(val):
+
+    def cor_gradiente_tmia(val):
         if val <= 50:
             r, g, b = 0, 255, 0
         elif 50 < val <= 90:
@@ -190,11 +202,11 @@ def main():
         return f'background-color: rgb({r}, {g}, {b})'
 
     def estilizar(df):
-        tmia_segundos = df["TMIA_segundos"].copy()
+        tmia_segundos = df["TMIA_segundos"].copy() #faz uma copia da coluna especifica para poder excluir ela do principal
         df = df.drop(columns=["TMIA_td", "TMIA_fmt", "TMIA_segundos"])  # já remove aqui
         styles = pd.DataFrame('', index=df.index, columns=df.columns)  # agora tem o shape correto
         for idx, val in zip(df.index, tmia_segundos):
-            styles.loc[idx, "TMIA"] = cor_gradiente(val)
+            styles.loc[idx, "TMIA"] = cor_gradiente_tmia(val)
         return df.style.set_properties(**{'text-align': 'center'}).apply(lambda _: styles, axis=None)
 
 
@@ -209,6 +221,7 @@ def main():
     else:
         st.info("Aguardando dados de KPI...")
 
+
     # --- Relatório Asana ---
     st.subheader("Relatório Asana")
     df_asana = dados_database["asana"]
@@ -216,6 +229,7 @@ def main():
         st.dataframe(df_asana, use_container_width=True)
     else:
         st.info("Nenhuma emergência no Asana no momento")
+
 
     # --- Atualização contínua ---
     st_autorefresh(interval=30 * 1000, key="auto_refresh")
