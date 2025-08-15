@@ -37,6 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 API_URL = "http://localhost:8002"
 
 def login(username, password):
@@ -65,7 +66,6 @@ else:
     if st.button("Sair"):
         st.session_state.token = None
         st.rerun()
-
 
     # Inicializa a página se ainda não existir
     if "page" not in st.session_state:

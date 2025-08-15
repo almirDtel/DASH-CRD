@@ -178,6 +178,56 @@ def main():
         df['%CSAT'] = df['%CSAT'].astype(float).map("{:.2f}".format)
         df['%NPS'] = df['%NPS'].astype(float).map("{:.2f}".format)
 
+        # Criar cópia para não alterar o original
+        df_copy = df.copy()
+
+        # Converter apenas colunas numéricas
+        cols_numericas = ['💬 QTD', '📞 ↙️', '📞 ⬈', '%CSAT', '%NPS']
+        for col in cols_numericas:
+            df_copy[col] = pd.to_numeric(df_copy[col], errors='coerce')
+
+        # Função para converter tempo hh:mm ou hh:mm:ss em segundos
+        def time_to_seconds(x):
+            if pd.isna(x):
+                return 0
+            if isinstance(x, str):
+                parts = [int(p) for p in x.split(':')]
+                if len(parts) == 2:
+                    return parts[0]*60 + parts[1]
+                elif len(parts) == 3:
+                    return parts[0]*3600 + parts[1]*60 + parts[2]
+            if isinstance(x, datetime.time):
+                return x.hour*3600 + x.minute*60 + x.second
+            return 0
+
+        # Converter tempos para segundos
+        df_copy['TMA_seg'] = df_copy['TMA'].apply(time_to_seconds)
+        df_copy['TMIA_seg'] = df_copy['TMIA'].apply(time_to_seconds)
+
+        # Calcular médias ponderadas por serviço
+        agrupado = df_copy.groupby('servico').apply(
+            lambda g: pd.Series({
+                'TMIA_seg': (g['TMIA_seg'] * g['💬 QTD']).sum() / g['💬 QTD'].sum(),
+                'TMA_seg': (g['TMA_seg'] * g['💬 QTD']).sum() / g['💬 QTD'].sum(),
+                '💬 QTD': g['💬 QTD'].sum(),
+                '📞 ↙️': g['📞 ↙️'].sum(),
+                '📞 ⬈': g['📞 ⬈'].sum(),
+                '%CSAT': (g['%CSAT'] * g['💬 QTD']).sum() / g['💬 QTD'].sum() if g['%CSAT'].notna().any() else None,
+                '%NPS': (g['%NPS'] * g['💬 QTD']).sum() / g['💬 QTD'].sum() if g['%NPS'].notna().any() else None,
+            })
+        ).reset_index()
+
+        # Converter tempos de volta para mm:ss
+        agrupado['TMA'] = agrupado['TMA_seg'].apply(lambda x: f"{int(x)//60:02d}:{int(x)%60:02d}")
+        agrupado['TMIA'] = agrupado['TMIA_seg'].apply(lambda x: f"{int(x)//60:02d}:{int(x)%60:02d}")
+
+        # Remover colunas temporárias
+        agrupado = agrupado.drop(columns=['TMA_seg', 'TMIA_seg'])
+
+        agrupado = agrupado[['servico', 'TMIA', 'TMA', '💬 QTD' , '📞 ↙️', '📞 ⬈', '%CSAT', '%NPS']]
+
+        agrupado = agrupado.sort_values(by="TMIA", ascending=True).reset_index(drop=True)
+
 
     def cor_gradiente_tmia(val):
         if val <= 50:
@@ -220,16 +270,26 @@ def main():
         st.dataframe(estilizar(df), use_container_width=True, height=altura)
     else:
         st.info("Aguardando dados de KPI...")
+    
 
-
-    # --- Relatório Asana ---
-    st.subheader("Relatório Asana")
     df_asana = dados_database["asana"]
-    if not df_asana.empty:
-        st.dataframe(df_asana, use_container_width=True)
-    else:
-        st.info("Nenhuma emergência no Asana no momento")
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("EMERGÊNCIAS")
+        if not df_asana.empty:
+            st.dataframe(df_asana, use_container_width=True)
+        else:
+            st.info("Nenhuma emergência no Asana no momento")
+
+    with col2:
+        st.subheader("FILAS")
+        if not agrupado.empty:
+            st.dataframe(agrupado, use_container_width=True)
+        else:
+            st.info("Aguardando dados de KPI...")
+    
 
     # --- Atualização contínua ---
     st_autorefresh(interval=30 * 1000, key="auto_refresh")
