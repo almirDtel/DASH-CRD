@@ -279,6 +279,8 @@ def main():
     with col1:
         st.subheader("EMERGÊNCIAS")
         if not df_asana.empty:
+            df_asana = df_asana.rename(columns={"total_clientes_afetados":"Clientes"})
+            df_asana = df_asana.sort_values(by="Clientes", ascending=False).reset_index(drop=True)
             st.dataframe(df_asana, use_container_width=True)
         else:
             st.info("Nenhuma emergência no Asana no momento")
@@ -292,4 +294,4 @@ def main():
     
 
     # --- Atualização contínua ---
-    st_autorefresh(interval=30 * 1000, key="auto_refresh")
+    st_autorefresh(interval=60 * 1000, key="auto_refresh")
